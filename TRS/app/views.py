@@ -9,6 +9,38 @@ from sqlalchemy.sql import select
 from sqlalchemy import create_engine
 
 engine = create_engine('mysql+pymysql://root@localhost/trs', echo=True)
+
+def getCIdValue(cid):
+    newId=''
+    newId= cid.split('c')
+    newID=int(newId[1])+ 1
+    return(newID)
+
+def uniqueCID(cid):
+    return('c' + str(cid))
+
+
+
+def getDIdValue(did):
+    newId=''
+    newId= did.split('d')
+    newID=int(newId[1])+ 1
+    return(newID)
+
+def uniqueDID(did):
+    return('d' + str(did))
+
+
+
+def getOIdValue(oid):
+    newId=''
+    newId= oid.split('o')
+    newID=int(newId[1])+ 1
+    return(newID)
+
+def uniqueOID(oid):
+    return('o' + str(oid))
+
 def flash_errors(form):
     for field, errors in form.errors.items():
         for error in errors:
@@ -17,26 +49,22 @@ def flash_errors(form):
                 error
             ))
 
-
 @app.route('/')
-# @login_required
+@login_required
 def home():
     rform=RequestForm()
     return render_template('map.html',form=rform)
 
-
-# @app.route('/save-coord', methods=['GET', 'POST'])
-# def save_coord():
-#     x = request.form['x']
-#     y = request.form['y']
-#     return jsonify(xcoord=x,ycoord=y)
-
 @app.route('/add-client', methods=['POST','GET'])
 def add_client():
     cform=clientForm()
-
     if request.method=='POST':
         if cform.validate_on_submit():
+            prevID=db.engine.execute('select cValue from idValue')
+            for pID in prevID:
+                oldID= pID['cValue']
+            specialID=uniqueCID(oldID)
+            specIdValue=getCIdValue(specialID)
             cfname=cform.cfname.data
             clname=cform.clname.data
             ccontact=cform.ccontact.data
@@ -46,9 +74,10 @@ def add_client():
             cadd2=cform.cadd2.data
             ccity=cform.ccity.data
             cparish=cform.cparish.data
-
-            client= Clientdb(cfname,clname,ccontact,cemail,cpassword,cadd1,cadd2,ccity,cparish)
+            client= Clientdb(specialID,cfname,clname,ccontact,cemail,cpassword,cadd1,cadd2,ccity,cparish)
             db.session.add(client)
+            db.session.commit()
+            db.engine.execute('update idValue set cValue=' + str(specIdValue))
             db.session.commit()
 
             flash('User added sucessfully','success')
@@ -59,7 +88,6 @@ def add_client():
 @app.route('/add-driver', methods=['POST','GET'])
 def add_driver():
     dform=driverForm()
-
     if request.method=='POST':
         if dform.validate_on_submit():
             dfname=dform.dfname.data
@@ -72,11 +100,16 @@ def add_driver():
             dcity=dform.dcity.data
             dparish=dform.dparish.data
             dtrn=dform.dtrn.data
-
-            driver= Driver(dfname,dlname,dcontact,demail,dpassword,dadd1,dadd2,dcity,dparish,dtrn)
+            prevDID=db.engine.execute('select dValue from idValue')
+            for pDID in prevDID:
+                oldDID= pDID['dValue']
+            specialDID=uniqueDID(oldDID)
+            specDIdValue=getDIdValue(specialDID)
+            driver= Driver(specialDID,dfname,dlname,dcontact,demail,dpassword,dadd1,dadd2,dcity,dparish,dtrn)
             db.session.add(driver)
             db.session.commit()
-
+            db.engine.execute('update idValue set dValue=' + str(specDIdValue))
+            db.session.commit()
             flash('User added sucessfully','success')
             return redirect (url_for('home'))
     flash_errors(dform)
@@ -85,7 +118,6 @@ def add_driver():
 @app.route('/add-operator', methods=['POST','GET'])
 def add_operator():
     oform=operatorForm()
-
     if request.method=='POST':
         if oform.validate_on_submit():
             ofname=oform.ofname.data
@@ -95,10 +127,16 @@ def add_operator():
             ocity=oform.ocity.data
             oparish=oform.oparish.data
             otrn=oform.otrn.data
-            operator= Operator(ofname,olname,oadd1,oadd2,ocity,oparish,otrn)
+            prevOID=db.engine.execute('select oValue from idValue')
+            for pOID in prevOID:
+                oldOID= pOID['oValue']
+            specialOID=uniqueOID(oldOID)
+            specOIdValue=getOIdValue(specialOID)
+            operator= Operator(specialOID,ofname,olname,oadd1,oadd2,ocity,oparish,otrn)
             db.session.add(operator)
             db.session.commit()
-
+            db.engine.execute('update idValue set oValue=' + str(specOIdValue))
+            db.session.commit()
             flash('User added sucessfully','success')
             return redirect (url_for('home'))
     flash_errors(oform)
@@ -107,7 +145,6 @@ def add_operator():
 @app.route('/add-vehicle', methods=['POST','GET'])
 def add_vehicle():
     vform=vehicleForm()
-
     if request.method=='POST':
         if vform.validate_on_submit():
             platenum=vform.platenum.data
@@ -116,11 +153,9 @@ def add_vehicle():
             vcolour=vform.vcolour.data
             seat_cap=vform.seat_cap.data
             vclass=vform.vclass.data
-
             vehicle= Vehicle(platenum,vmodel,vmake,vcolour,seat_cap,vclass)
             db.session.add(vehicle)
             db.session.commit()
-
             flash('User added sucessfully','success')
             return redirect (url_for('home'))
     flash_errors(vform)
@@ -139,7 +174,7 @@ def login():
             login_user(userr)
             return redirect(url_for ('home'))
             print "Loged In"
-            # next=request.args.get('next')
+            next=request.args.get('next')
             # if not is_safe_url(next):
             #     return abort(400)
             # return redirect(next or url_for('home'))
@@ -158,20 +193,20 @@ def logout():
     logout_user()
     flash('You have been logged out.', 'danger')
     return redirect(url_for('login'))
-conn=engine.connect()
-@app.route('/request',methods=['POST','GET'])
+
+@app.route("/request", methods=["POST","GET"])
 def request_cab():
     if request.method=="POST":
         seat = request.form['seat']
         vtype= request.form['vehicle']
         wfactor= request.form['wfac']
         driver= request.form['dname']
-        cid = 2#current_user.id
+        cid = current_user.id
         pickup= request.form['pickup']
         dest= request.form['dest']
-        fNResult= db.engine.execute('select cfname from client where id=2')
-        lNResult= db.engine.execute('select clname from client where id=2')
-        cResult= db.engine.execute('select ccontact from client where id=2')
+        fNResult= db.engine.execute('select cfname from client where id='+str(cid))
+        lNResult= db.engine.execute('select clname from client where id='+str(cid))
+        cResult= db.engine.execute('select ccontact from client where id='+str(cid))
         for fname in fNResult:
             print fname['cfname']  
         for lname in lNResult:
@@ -194,16 +229,13 @@ def request_cab():
         # getDriver(seat,vtype,driver)
         # return creq.dest() #consider making a global variable and pass to function responsible for p.queue
 
-allClients= db.engine.execute('select cfname,clname from client')
-for everyC in allClients:
-    print everyC['cfname','clname']
 def getDriver(seat,vtype,driver):
     driverss=[]
     i=0
     j=0
     if driver != '':
         print driver #driver= Put query here using driver(return name,platereg,make,model and color of vchl){Zaavan}
-    drivers=  db.engine.execute('select dfname,dlname,vmake,vmodel,vcolour,platenum.operates from driver join vehicle join operates on platenum.operates=platenum.vehicle and dtrn.driver=dtrn.operates')
+    #drivers=  #query name,loc, v.color,v.model,v.make,v.regnum where seat>seatCap,vtype=vtype
     for driver in drivers:
             driverss.append(driver.name,driver.regnum,driver.model,driver.make,driver.color, driver.loc)
     while (i < len(driverss)):
@@ -215,7 +247,16 @@ def getDriver(seat,vtype,driver):
         loc=driverss[i][5]
     pdriver=Driver(name,regnum,make,model,color,loc)
     return pdriver.dest() #Consider passing to another function where the priority list will be populated.
+    fNResult= db.engine.execute('select dfname from client where status=available')
+    lNResult= db.engine.execute('select dlname from client where status=available')
+    vResult= db.engine.execute('select plateNum from operates join driver on operates.userDID=driver.userDID where status=available')
 
+    for fname in fNResult:
+            print fname['dfname']  
+    for lname in lNResult:
+        print lname['dlname']
+    for plate in vResult:
+        print plate['plateNum']
 
 @app.route('/save-coord', methods=['GET', 'POST'])
 def save_coord():
